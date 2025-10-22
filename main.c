@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 
-uint64_t Expansion_Step (uint32_t round_input){
-    uint64_t expation_result = 0;
+uint64_t expansion_step(uint32_t round_input){
+    uint64_t expansion_result = 0;
 
     uint8_t E_TABLE [48] = {
         32,1,2,3,4,5,
@@ -17,19 +18,20 @@ uint64_t Expansion_Step (uint32_t round_input){
     };
 
     for (int i = 0; i < 48; i++) {
-        expation_result <<= 1;
-        expation_result |= (round_input >> (32 - E_TABLE[i])) & 0x01;
+        expansion_result <<= 1;
+        expansion_result |= (round_input >> (32 - E_TABLE[i])) & 0x01;
     }
-    return expation_result;
+    return expansion_result;
 
 }
 
-uint64_t key_XOR_step (uint64_t key, uint64_t E_table_otput){
-    return E_table_otput ^ key;
+uint64_t key_xor_step (uint64_t key, uint64_t e_table_output){
+    return e_table_output ^ key;
 }
+
 
 uint8_t get_row_index(uint8_t s_box_group){ //input: b5b4b3b2b1b0
-    uint8_t row_index = 0; 
+    uint8_t row_index = 0;
     row_index  = (s_box_group & 0x20)>>4; // row index = 0000_00b50
     row_index |= (s_box_group & 0x01);    // row index = 0000_00b5b0
     return row_index;
@@ -42,7 +44,7 @@ uint8_t get_col_index(uint8_t s_box_group){ //input: b5b4b3b2b1b0
     return col_index;
 }
 
-uint32_t subBytes_step (uint64_t s_box_input) { // 48-bit E_table output XORed with key 
+uint32_t sub_bytes_step (uint64_t s_box_input) { // 48-bit E_table output XORed with key 
     uint8_t row,col;
     uint32_t res = 0;
     uint32_t S1[4][16]  = { //MSB
@@ -161,30 +163,34 @@ uint32_t Permutation_Step (uint32_t P_input){
     return permutation_result;
 }
 
+// Perform a single Feistel round: expand right, XOR with round key, S-boxes, permutation
+uint32_t feistel_round(uint32_t right, uint64_t round_key){
+    uint64_t expanded = expansion_step(right);
+    uint64_t xored = key_xor_step(round_key, expanded);
+    uint32_t subbed = sub_bytes_step(xored);
+    uint32_t permuted = Permutation_Step(subbed);
+    return permuted;
+}
+
 int main (){
-
     uint32_t input = 0x12345678;
-    uint64_t key = 0;
-    uint64_t exp_res = 0;
-    uint64_t XOR_res = 0;
-    uint32_t subByte_res = 0;
-    uint32_t per_res = 0;
+    uint64_t round_key = 0;
 
-    exp_res = Expansion_Step(input);
+    printf("input: 0x%08x\n", input);
 
-    printf("input: %x\n",input);
-    printf("Expansion step result: %lld\n",exp_res);  //0x 0A41 A82A C3F0
+    uint32_t feistel_out = feistel_round(input, round_key);
+    printf("Feistel round output (permutation result): 0x%08x\n", feistel_out);
 
-    XOR_res = key_XOR_step(key,exp_res);
-    
-    // printf("Byte = 0x2D\n"); // 10 1101
-    // printf("Row index = %d\n",get_row_index(0x2D)); // 0b11
-    // printf("Column index = %d\n",get_col_index(0x2D)); //0b0110
-    subByte_res = subBytes_step(XOR_res);
-    printf("Sub Byte stage result = %X\n",subByte_res); // 0x 47EC ACA0
+    // For comparison, print intermediate stages like before
+    uint64_t expanded = expansion_step(input);
+    printf("Expansion step result: 0x%012llx\n", expanded);  // 48-bit value
 
-    per_res = Permutation_Step (subByte_res);
-    printf("Permutation stage result = %X\n",per_res); // 0x 0x5101 D5DD
+    uint64_t xored = key_xor_step(round_key, expanded);
+    uint32_t subbed = sub_bytes_step(xored);
+    printf("Sub Byte stage result = 0x%08x\n", subbed);
+
+    uint32_t permuted = Permutation_Step(subbed);
+    printf("Permutation stage result = 0x%08x\n", permuted);
 }
 
 // Sbox groups: 000010 100100 000110 101000 001010 101100 001111 110000
