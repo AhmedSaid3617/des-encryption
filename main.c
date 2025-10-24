@@ -155,6 +155,50 @@ uint32_t permutation_p(uint32_t P_input)
     return permutation_result;
 }
 
+uint64_t permutation_i(uint64_t input_block)
+{
+    uint8_t IP_TABLE[64] = {
+        58, 50, 42, 34, 26, 18, 10, 2,
+        60, 52, 44, 36, 28, 20, 12, 4,
+        62, 54, 46, 38, 30, 22, 14, 6,
+        64, 56, 48, 40, 32, 24, 16, 8,
+        57, 49, 41, 33, 25, 17, 9, 1,
+        59, 51, 43, 35, 27, 19, 11, 3,
+        61, 53, 45, 37, 29, 21, 13, 5,
+        63, 55, 47, 39, 31, 23, 15, 7};
+
+    uint64_t permutation_result = 0;
+    for (int i = 0; i < 64; i++)
+    {
+        uint64_t y = ((uint64_t)1 << (64 - IP_TABLE[i]));
+        uint64_t x = (input_block & y) ? 1 : 0;
+        permutation_result |= x << (64 - 1 - i);
+    }
+    return permutation_result;
+}
+
+uint64_t permutation_i_inv(uint64_t input_block)
+{
+    uint8_t IP_INV_TABLE[64] = {
+        40, 8, 48, 16, 56, 24, 32, 0,
+        39, 7, 47, 15, 55, 23, 31, 63,
+        38, 6, 46, 14, 54, 22, 30, 62,
+        37, 5, 45, 13, 53, 21, 29, 61,
+        36, 4, 44, 12, 52, 20, 28, 60,
+        35, 3, 43, 11, 51, 19, 27, 59,
+        34, 2, 42, 10, 50, 18, 26, 58,
+        33, 1, 41, 9, 49, 17, 25, 57};
+
+    uint64_t permutation_result = 0;
+    for (int i = 0; i < 64; i++)
+    {
+        uint64_t y = ((uint64_t)1 << (64 - IP_INV_TABLE[i]));
+        uint64_t x = (input_block & y) ? 1 : 0;
+        permutation_result |= x << (64 - 1 - i);
+    }
+    return permutation_result;
+}
+
 // Perform a single Feistel round: expand right, XOR with round key, S-boxes, permutation
 uint32_t feistel_round(uint32_t right, uint64_t round_key)
 {
@@ -165,19 +209,31 @@ uint32_t feistel_round(uint32_t right, uint64_t round_key)
     return permuted;
 }
 
-static const uint8_t pc1_array[56] =
-    {57, 49, 41, 33, 25, 17, 9,
-     1, 58, 50, 42, 34, 26, 18,
-     10, 2, 59, 51, 43, 35, 27,
-     19, 11, 3, 60, 52, 44, 36,
-     63, 55, 47, 39, 31, 23, 15,
-     7, 62, 54, 46, 38, 30, 22,
-     14, 6, 61, 53, 45, 37, 29,
-     21, 13, 5, 28, 20, 12, 4};
+uint64_t permutation_pc1(uint64_t input)
+{
+    static const uint8_t PC1_TABLE[56] = {
+        57, 49, 41, 33, 25, 17, 9,
+        1, 58, 50, 42, 34, 26, 18,
+        10, 2, 59, 51, 43, 35, 27,
+        19, 11, 3, 60, 52, 44, 36,
+        63, 55, 47, 39, 31, 23, 15,
+        7, 62, 54, 46, 38, 30, 22,
+        14, 6, 61, 53, 45, 37, 29,
+        21, 13, 5, 28, 20, 12, 4};
+
+    uint64_t permutation_result = 0;
+    for (int i = 0; i < 56; i++)
+    {
+        uint64_t y = ((uint64_t)1 << (64 - PC1_TABLE[i]));
+        uint64_t x = (input & y) ? 1 : 0;
+        permutation_result |= x << (56 - 1 - i);
+    }
+    return permutation_result;
+}
 
 uint64_t permutation_pc2(uint64_t input)
 {
-    static uint8_t pc2_array[48] = {
+    static const uint8_t PC2_TABLE[48] = {
         14, 17, 11, 24, 1, 5,
         3, 28, 15, 6, 21, 10,
         23, 19, 12, 4, 26, 8,
@@ -189,26 +245,48 @@ uint64_t permutation_pc2(uint64_t input)
     uint64_t permutation_result = 0;
     for (int i = 0; i < 48; i++)
     {
-        uint64_t y = ((uint64_t)1 << (56 - pc2_array[i]));
+        uint64_t y = ((uint64_t)1 << (56 - PC2_TABLE[i]));
         uint64_t x = (input & y) ? 1 : 0;
         permutation_result |= x << (48 - 1 - i);
     }
     return permutation_result;
 }
 
-int main()
+// Circular left shift for 28-bit value
+uint32_t rotate_left_28(uint32_t val, int n)
 {
-    uint64_t input = (uint64_t)1 << 56-14;
-    input |= (uint64_t)1 << (56-17);
-    input |= (uint64_t)1 << (56-11);
-    input |= (uint64_t)1 << (56-24);
-    uint64_t round_key = 0;
-
-    printf("pc2: 0x%lx\n", permutation_pc2(input));
-    printf("exp: 0x%lx\n", 0xF00000000000);
-
+    return ((val << n) | (val >> (28 - n))) & 0x0FFFFFFF; // Mask to keep 28 bits
 }
 
-// Sbox groups: 000010 100100 000110 101000 001010 101100 001111 110000
-// P_Box input: 0x47EC ACA0 -> 0100 0111 1110 1100 1010 1100 1010 0000
-// P_Box output: 0x5101D5DD -> 0101 0001 0000 0001 1101 0101 1101 1101
+// Rotate the 56-bit key (split into two 28-bit halves)
+uint64_t des_key_rotate(uint64_t key56, int rotations)
+{
+    // Extract left and right 28-bit halves
+    uint32_t C = (key56 >> 28) & 0x0FFFFFFF;
+    uint32_t D = key56 & 0x0FFFFFFF;
+
+    // Perform circular left shifts
+    C = rotate_left_28(C, rotations);
+    D = rotate_left_28(D, rotations);
+
+    // Combine back into a 56-bit key
+    uint64_t rotated_key = ((uint64_t)C << 28) | (uint64_t)D;
+    return rotated_key;
+}
+
+void generate_keys(uint64_t key, uint64_t *key_buffer)
+{
+    static const uint8_t key_shift[16] = {1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1};
+    uint64_t effective_key = permutation_pc1(key);
+    uint64_t tmp_key = effective_key;
+    for (int i = 0; i < 16; i++)
+    {
+        tmp_key = des_key_rotate(tmp_key, key_shift[i]);
+        key_buffer[i] = permutation_pc2(tmp_key);
+    }
+}
+
+int main()
+{
+    // Main algorithm
+}
