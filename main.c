@@ -179,15 +179,17 @@ uint64_t permutation_i(uint64_t input_block)
 
 uint64_t permutation_i_inv(uint64_t input_block)
 {
-    uint8_t IP_INV_TABLE[64] = {
-        40, 8, 48, 16, 56, 24, 32, 0,
-        39, 7, 47, 15, 55, 23, 31, 63,
-        38, 6, 46, 14, 54, 22, 30, 62,
-        37, 5, 45, 13, 53, 21, 29, 61,
-        36, 4, 44, 12, 52, 20, 28, 60,
-        35, 3, 43, 11, 51, 19, 27, 59,
-        34, 2, 42, 10, 50, 18, 26, 58,
-        33, 1, 41, 9, 49, 17, 25, 57};
+    static const uint8_t IP_INV_TABLE[64] = {
+        40,  8, 48, 16, 56, 24, 64, 32,
+        39,  7, 47, 15, 55, 23, 63, 31,
+        38,  6, 46, 14, 54, 22, 62, 30,
+        37,  5, 45, 13, 53, 21, 61, 29,
+        36,  4, 44, 12, 52, 20, 60, 28,
+        35,  3, 43, 11, 51, 19, 59, 27,
+        34,  2, 42, 10, 50, 18, 58, 26,
+        33,  1, 41,  9, 49, 17, 57, 25
+    };
+
 
     uint64_t permutation_result = 0;
     for (int i = 0; i < 64; i++)
@@ -286,7 +288,134 @@ void generate_keys(uint64_t key, uint64_t *key_buffer)
     }
 }
 
-int main()
+uint64_t Encrypt(uint64_t text, uint64_t key)
 {
-    // Main algorithm
+    uint64_t keybuffer[16];
+
+    generate_keys(key, keybuffer);
+
+    uint64_t text_before_round = permutation_i(text);
+    uint64_t text_after_round;
+    uint32_t left_part;
+    uint64_t right_part;
+    uint32_t fiestel_out;
+
+    for (int i = 0; i < 16; i++)
+    {
+        text_after_round = 0;
+        right_part = text_before_round & (0x00000000ffffffff);
+        left_part  = (text_before_round & (0xffffffff00000000)) >> 32;
+        text_after_round |= right_part << (32);
+        fiestel_out = feistel_round(right_part, keybuffer[i]);
+        text_after_round |= fiestel_out ^ left_part;
+        text_before_round = text_after_round;
+    }
+
+    text_after_round = 0;
+    right_part = text_before_round & (0x00000000ffffffff);
+    left_part  = (text_before_round & (0xffffffff00000000)) >> 32;
+    text_after_round |= left_part;
+    text_after_round |= right_part << (32);
+
+
+    return permutation_i_inv(text_after_round);
+}
+
+uint64_t Decrypt(uint64_t text, uint64_t key)
+{
+    uint64_t keybuffer[16];
+
+    generate_keys(key, keybuffer);
+
+    uint64_t text_before_round = permutation_i(text);
+    uint64_t text_after_round;
+    uint32_t left_part;
+    uint64_t right_part;
+    uint32_t fiestel_out;
+
+    for (int i = 15; i >= 0; i--)
+    {
+        text_after_round = 0;
+        right_part = text_before_round & (0x00000000ffffffff);
+        left_part  = (text_before_round & (0xffffffff00000000)) >> 32;
+        text_after_round |= right_part << (32);
+        fiestel_out = feistel_round(right_part, keybuffer[i]);
+        text_after_round |= fiestel_out ^ left_part;
+        text_before_round = text_after_round;
+    }
+
+    text_after_round = 0;
+    right_part = text_before_round & (0x00000000ffffffff);
+    left_part  = (text_before_round & (0xffffffff00000000)) >> 32;
+    text_after_round |= left_part;
+    text_after_round |= right_part << (32);
+
+
+    return permutation_i_inv(text_after_round);
+}
+
+
+
+
+int main(int argc, char **argv)
+{
+
+    char mode = argv[1][0];
+    const char *keyFile = argv[2];
+    const char *inputFile = argv[3];
+    const char *outputFile = argv[4];
+
+    FILE *fkey = fopen(keyFile, "rb");
+    FILE *fin = fopen(inputFile, "rb");
+    FILE *fout = fopen(outputFile, "wb");
+
+    if (!fin || !fkey || !fout) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    if(mode == 'e')
+    {
+        uint64_t key;
+        if (fread(&key, sizeof(uint64_t), 1, fkey) != 1) {
+            perror("Error reading key");
+            return 1;
+        }
+
+        uint64_t plaintext, ciphertext;
+
+        while (fread(&plaintext, sizeof(uint64_t), 1, fin) == 1) {
+            ciphertext = Encrypt(plaintext, key);
+            fwrite(&ciphertext, sizeof(uint64_t), 1, fout);
+        }
+        printf("Encryption completed successfully.\n");
+    }
+    else if(mode == 'd')
+    {
+        // printf("Bla Bla Bla.\n");
+        uint64_t key;
+        if (fread(&key, sizeof(uint64_t), 1, fkey) != 1) {
+            perror("Error reading key");
+            return 1;
+        }
+
+        uint64_t plaintext, ciphertext;
+
+        while (fread(&ciphertext, sizeof(uint64_t), 1, fin) == 1) {
+            plaintext = Decrypt(ciphertext, key);
+            fwrite(&plaintext, sizeof(uint64_t), 1, fout);
+        }
+        printf("Decryption completed successfully.\n");
+    }
+    else
+    {
+        fprintf(stderr, "Invalid mode: %c (use 'e' or 'd')\n", mode);
+    }
+    
+
+    fclose(fin);
+    fclose(fkey);
+    fclose(fout);
+
+    return 0;
 }
