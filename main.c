@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#define BUFFER_SIZE 1024 * 8
+
 // Convert between host byte order and big-endian (network byte order)
 static inline uint64_t htobe64_custom(uint64_t host_64bits)
 {
@@ -384,6 +386,10 @@ static inline uint64_t Decrypt(uint64_t text, uint64_t key)
     return permutation_i_inv(text_after_round);
 }
 
+uint64_t plaintext_buff[BUFFER_SIZE];
+uint64_t ciphertext_buff[BUFFER_SIZE];
+uint32_t ciphertext_count = 0;
+
 int main(int argc, char **argv)
 {
 
@@ -414,21 +420,27 @@ int main(int argc, char **argv)
         key = be64toh_custom(key);
 
         uint64_t plaintext, ciphertext;
+        int chunk_size;
 
-        while (fread(&plaintext, sizeof(uint64_t), 1, fin) == 1)
+        while (chunk_size = fread(plaintext_buff, sizeof(uint64_t), BUFFER_SIZE, fin))
         {
             // Convert plaintext from big-endian to host byte order
-            plaintext = be64toh_custom(plaintext);
-            ciphertext = Encrypt(plaintext, key);
-            // Convert ciphertext to big-endian before writing
-            ciphertext = htobe64_custom(ciphertext);
-            fwrite(&ciphertext, sizeof(uint64_t), 1, fout);
+            for (int i = 0; i < chunk_size; i++)
+            {
+                plaintext = be64toh_custom(plaintext_buff[i]);
+                //plaintext = plaintext_buff[i];
+                ciphertext = Encrypt(plaintext, key);
+                // Convert ciphertext to big-endian before writing
+                ciphertext_buff[i] = htobe64_custom(ciphertext);
+                //ciphertext_buff[i] = ciphertext;
+            }
+
+            fwrite(&ciphertext_buff, sizeof(uint64_t), chunk_size, fout);
         }
         // printf("Encryption completed successfully.\n");
     }
     else if (mode == 'd')
     {
-        // printf("Bla Bla Bla.\n");
         uint64_t key;
         if (fread(&key, sizeof(uint64_t), 1, fkey) != 1)
         {
@@ -439,17 +451,23 @@ int main(int argc, char **argv)
         key = be64toh_custom(key);
 
         uint64_t plaintext, ciphertext;
+        int chunk_size;
 
-        while (fread(&ciphertext, sizeof(uint64_t), 1, fin) == 1)
+        while (chunk_size = fread(&ciphertext_buff, sizeof(uint64_t), BUFFER_SIZE, fin))
         {
-            // Convert ciphertext from big-endian to host byte order
-            ciphertext = be64toh_custom(ciphertext);
-            plaintext = Decrypt(ciphertext, key);
-            // Convert plaintext to big-endian before writing
-            plaintext = htobe64_custom(plaintext);
-            fwrite(&plaintext, sizeof(uint64_t), 1, fout);
+
+            for (int i = 0; i < chunk_size; i++)
+            {
+                // Convert ciphertext from big-endian to host byte order
+                ciphertext = be64toh_custom(ciphertext_buff[i]);
+                plaintext = Decrypt(ciphertext, key);
+                // Convert plaintext to big-endian before writing
+                plaintext_buff[i] = htobe64_custom(plaintext);
+            }
+
+            fwrite(&plaintext_buff, sizeof(uint64_t), chunk_size, fout);
         }
-        // printf("Decryption completed successfully.\n");
+        // printf("Encryption completed successfully.\n");
     }
     else
     {

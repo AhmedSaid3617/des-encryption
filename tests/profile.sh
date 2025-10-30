@@ -4,7 +4,7 @@
 set -e
 
 # --- Configuration ---
-EXECUTABLE="./studentID" # Assuming the executable is in the current directory
+EXECUTABLE="./a.out" # Assuming the executable is in the current directory
 LOG_FILE="profiling_results.txt"
 MAIN_TEST_DIR="bins/main_test"
 
