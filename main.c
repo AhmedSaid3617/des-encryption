@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include <time.h>
 
 #define BUFFER_SIZE 1024 * 32
 
 // Convert between host byte order and big-endian (network byte order)
-__attribute__((always_inline)) uint64_t htobe64_custom(uint64_t host_64bits)
+uint64_t htobe64_custom(uint64_t host_64bits)
 {
     // Check if system is little-endian
     uint16_t test = 0x0001;
@@ -27,26 +25,26 @@ __attribute__((always_inline)) uint64_t htobe64_custom(uint64_t host_64bits)
     return host_64bits; // Already big-endian
 }
 
-__attribute__((always_inline)) uint64_t be64toh_custom(uint64_t big_endian_64bits)
+uint64_t be64toh_custom(uint64_t big_endian_64bits)
 {
     // Conversion is symmetric
     return htobe64_custom(big_endian_64bits);
 }
 
 static const uint8_t E_TABLE[48] = {
-        32, 1, 2, 3, 4, 5,
-        4, 5, 6, 7, 8, 9,
-        8, 9, 10, 11, 12, 13,
-        12, 13, 14, 15, 16, 17,
-        16, 17, 18, 19, 20, 21,
-        20, 21, 22, 23, 24, 25,
-        24, 25, 26, 27, 28, 29,
-        28, 29, 30, 31, 32, 1};
+    32, 1, 2, 3, 4, 5,
+    4, 5, 6, 7, 8, 9,
+    8, 9, 10, 11, 12, 13,
+    12, 13, 14, 15, 16, 17,
+    16, 17, 18, 19, 20, 21,
+    20, 21, 22, 23, 24, 25,
+    24, 25, 26, 27, 28, 29,
+    28, 29, 30, 31, 32, 1};
 
 static uint64_t E_table_shifted[48];
 static uint32_t P_table_shifts[32];
 
-__attribute__((always_inline)) uint64_t expansion(uint32_t round_input)
+uint64_t expansion(uint32_t round_input)
 {
     uint64_t expansion_result = 0;
     uint64_t x;
@@ -59,7 +57,7 @@ __attribute__((always_inline)) uint64_t expansion(uint32_t round_input)
     return expansion_result;
 }
 
-__attribute__((always_inline)) uint8_t get_row_index(uint8_t s_box_group)
+uint8_t get_row_index(uint8_t s_box_group)
 { // input: b5b4b3b2b1b0
     uint8_t row_index = 0;
     row_index = (s_box_group & 0x20) >> 4; // row index = 0000_00b50
@@ -67,7 +65,7 @@ __attribute__((always_inline)) uint8_t get_row_index(uint8_t s_box_group)
     return row_index;
 }
 
-__attribute__((always_inline)) uint8_t get_col_index(uint8_t s_box_group)
+uint8_t get_col_index(uint8_t s_box_group)
 { // input: b5b4b3b2b1b0
     uint8_t col_index = 0;
     col_index = (s_box_group & 0x1E) >> 1; // col_index = 0000_b4b3b2b1
@@ -123,7 +121,7 @@ static const uint32_t S8[4][16] = { // LSB
     {7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8},
     {2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11}};
 
-__attribute__((always_inline)) uint32_t s_box(uint64_t s_box_input)
+uint32_t s_box(uint64_t s_box_input)
 { // 48-bit E_table output XORed with key
     uint8_t row, col;
     uint32_t res = 0;
@@ -179,7 +177,7 @@ static const uint8_t P_TABLE[32] = {
     2, 8, 24, 14, 32, 27, 3, 9,
     19, 13, 30, 6, 22, 11, 4, 25};
 
-__attribute__((always_inline)) uint32_t permutation_p(uint32_t P_input)
+uint32_t permutation_p(uint32_t P_input)
 {
     uint32_t permutation_result = 0;
     uint32_t x;
@@ -202,7 +200,7 @@ static const uint8_t IP_TABLE[64] = {
     61, 53, 45, 37, 29, 21, 13, 5,
     63, 55, 47, 39, 31, 23, 15, 7};
 
-__attribute__((always_inline)) uint64_t permutation_i(uint64_t input_block)
+uint64_t permutation_i(uint64_t input_block)
 {
 
     uint64_t permutation_result = 0;
@@ -225,7 +223,7 @@ static const uint8_t IP_INV_TABLE[64] = {
     34, 2, 42, 10, 50, 18, 58, 26,
     33, 1, 41, 9, 49, 17, 57, 25};
 
-__attribute__((always_inline)) uint64_t permutation_i_inv(uint64_t input_block)
+uint64_t permutation_i_inv(uint64_t input_block)
 {
 
     uint64_t permutation_result = 0;
@@ -239,7 +237,7 @@ __attribute__((always_inline)) uint64_t permutation_i_inv(uint64_t input_block)
 }
 
 // Perform a single Feistel round: expand right, XOR with round key, S-boxes, permutation
-__attribute__((always_inline)) uint32_t feistel_round(uint32_t right, uint64_t round_key)
+uint32_t feistel_round(uint32_t right, uint64_t round_key)
 {
     uint64_t expanded = expansion(right);
     uint64_t xored = round_key ^ expanded;
@@ -258,7 +256,7 @@ static const uint8_t PC1_TABLE[56] = {
     14, 6, 61, 53, 45, 37, 29,
     21, 13, 5, 28, 20, 12, 4};
 
-__attribute__((always_inline)) uint64_t permutation_pc1(uint64_t input)
+uint64_t permutation_pc1(uint64_t input)
 {
 
     uint64_t permutation_result = 0;
@@ -283,14 +281,14 @@ static const uint8_t PC2_TABLE[48] = {
 
 static uint64_t PC2_computed_shifts[48];
 
-__attribute__((always_inline)) uint64_t permutation_pc2(uint64_t input)
+uint64_t permutation_pc2(uint64_t input)
 {
 
     uint64_t permutation_result = 0;
-    uint64_t x, y;
+    uint64_t x;
     for (int i = 0; i < 48; i++)
     {
-        //y = ((uint64_t)1 << (56 - PC2_TABLE[i]));
+        // y = ((uint64_t)1 << (56 - PC2_TABLE[i]));
         x = (input & PC2_computed_shifts[i]) ? 1 : 0;
         permutation_result |= x << (48 - 1 - i);
     }
@@ -298,13 +296,13 @@ __attribute__((always_inline)) uint64_t permutation_pc2(uint64_t input)
 }
 
 // Circular left shift for 28-bit value
-__attribute__((always_inline)) uint32_t rotate_left_28(uint32_t val, int n)
+uint32_t rotate_left_28(uint32_t val, int n)
 {
     return ((val << n) | (val >> (28 - n))) & 0x0FFFFFFF; // Mask to keep 28 bits
 }
 
 // Rotate the 56-bit key (split into two 28-bit halves)
-__attribute__((always_inline)) uint64_t des_key_rotate(uint64_t key56, int rotations)
+uint64_t des_key_rotate(uint64_t key56, int rotations)
 {
     // Extract left and right 28-bit halves
     uint32_t C = (key56 >> 28) & 0x0FFFFFFF;
@@ -319,7 +317,9 @@ __attribute__((always_inline)) uint64_t des_key_rotate(uint64_t key56, int rotat
     return rotated_key;
 }
 
-__attribute__((always_inline)) void generate_keys(uint64_t key, uint64_t *key_buffer)
+uint64_t keybuffer[16];
+
+void generate_keys(uint64_t key, uint64_t *key_buffer)
 {
     static const uint8_t key_shift[16] = {1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1};
     uint64_t effective_key = permutation_pc1(key);
@@ -331,11 +331,8 @@ __attribute__((always_inline)) void generate_keys(uint64_t key, uint64_t *key_bu
     }
 }
 
-__attribute__((always_inline)) uint64_t Encrypt(uint64_t text, uint64_t key)
+uint64_t Encrypt(uint64_t text, uint64_t key)
 {
-    uint64_t keybuffer[16];
-
-    generate_keys(key, keybuffer);
 
     uint64_t text_before_round = permutation_i(text);
     uint64_t text_after_round;
@@ -363,12 +360,8 @@ __attribute__((always_inline)) uint64_t Encrypt(uint64_t text, uint64_t key)
     return permutation_i_inv(text_after_round);
 }
 
-__attribute__((always_inline)) uint64_t Decrypt(uint64_t text, uint64_t key)
+uint64_t Decrypt(uint64_t text, uint64_t key)
 {
-    uint64_t keybuffer[16];
-
-    generate_keys(key, keybuffer);
-
     uint64_t text_before_round = permutation_i(text);
     uint64_t text_after_round;
     uint32_t left_part;
@@ -395,7 +388,8 @@ __attribute__((always_inline)) uint64_t Decrypt(uint64_t text, uint64_t key)
     return permutation_i_inv(text_after_round);
 }
 
-void precompute(){
+void precompute()
+{
     for (int i = 0; i < 48; i++)
     {
         PC2_computed_shifts[i] = ((uint64_t)1 << (56 - PC2_TABLE[i]));
@@ -428,6 +422,9 @@ int main(int argc, char **argv)
     FILE *fin = fopen(inputFile, "rb");
     FILE *fout = fopen(outputFile, "wb");
 
+    /* char *buffer = malloc(BUFFER_SIZE*8);
+    setvbuf(fin, buffer, _IOFBF, BUFFER_SIZE*8); */
+
     if (!fin || !fkey || !fout)
     {
         perror("Error opening file");
@@ -444,6 +441,7 @@ int main(int argc, char **argv)
         }
         // Convert key from big-endian (file format) to host byte order
         key = be64toh_custom(key);
+        generate_keys(key, keybuffer);
 
         uint64_t plaintext, ciphertext;
         int chunk_size;
@@ -454,11 +452,11 @@ int main(int argc, char **argv)
             for (int i = 0; i < chunk_size; i++)
             {
                 plaintext = be64toh_custom(plaintext_buff[i]);
-                //plaintext = plaintext_buff[i];
+                // plaintext = plaintext_buff[i];
                 ciphertext = Encrypt(plaintext, key);
                 // Convert ciphertext to big-endian before writing
                 ciphertext_buff[i] = htobe64_custom(ciphertext);
-                //ciphertext_buff[i] = ciphertext;
+                // ciphertext_buff[i] = ciphertext;
             }
 
             fwrite(&ciphertext_buff, sizeof(uint64_t), chunk_size, fout);
@@ -475,6 +473,7 @@ int main(int argc, char **argv)
         }
         // Convert key from big-endian (file format) to host byte order
         key = be64toh_custom(key);
+        generate_keys(key, keybuffer);
 
         uint64_t plaintext, ciphertext;
         int chunk_size;
