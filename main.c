@@ -290,8 +290,7 @@ uint64_t permutation_pc2(uint64_t input)
     {
         // y = ((uint64_t)1 << (56 - PC2_TABLE[i]));
         x = (input & PC2_computed_shifts[i]) ? 1 : 0;
-        permutation_result |= x;
-        permutation_result = permutation_result << 1;
+        permutation_result |= x << (48 - 1 - i);
     }
     return permutation_result;
 }

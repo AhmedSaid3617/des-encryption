@@ -9,3 +9,7 @@ bins/
 *.bin
 *.txt
 *.out
+ciphertest
+plaintest
+ciphoor
+a.exe
