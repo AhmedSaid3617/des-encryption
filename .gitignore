@@ -5,3 +5,7 @@ key_gen.exe
 plain_gen.exe
 main.exe
 tempCodeRunnerFile.cpp
+bins/
+*.bin
+*.txt
+*.out
