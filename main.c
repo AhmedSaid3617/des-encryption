@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define BUFFER_SIZE 1024 * 32
+#define BUFFER_SIZE 1024 * 80
 
 // Convert between host byte order and big-endian (network byte order)
 uint64_t htobe64_custom(uint64_t host_64bits)
@@ -73,7 +73,11 @@ uint8_t get_col_index(uint8_t s_box_group)
     return col_index;
 }
 
-static const uint32_t S1[4][16] = { // MSB
+
+
+uint32_t s_box(uint64_t s_box_input)
+{ // 48-bit E_table output XORed with key
+    static const uint32_t S1[4][16] = { // MSB
     {14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7},
     {0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8},
     {4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0},
@@ -120,9 +124,6 @@ static const uint32_t S8[4][16] = { // LSB
     {1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2},
     {7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8},
     {2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11}};
-
-uint32_t s_box(uint64_t s_box_input)
-{ // 48-bit E_table output XORed with key
     uint8_t row, col;
     uint32_t res = 0;
 
@@ -190,7 +191,11 @@ uint32_t permutation_p(uint32_t P_input)
     return permutation_result;
 }
 
-static const uint8_t IP_TABLE[64] = {
+
+
+uint64_t permutation_i(uint64_t input_block)
+{
+    static const uint8_t IP_TABLE[64] = {
     58, 50, 42, 34, 26, 18, 10, 2,
     60, 52, 44, 36, 28, 20, 12, 4,
     62, 54, 46, 38, 30, 22, 14, 6,
@@ -199,9 +204,6 @@ static const uint8_t IP_TABLE[64] = {
     59, 51, 43, 35, 27, 19, 11, 3,
     61, 53, 45, 37, 29, 21, 13, 5,
     63, 55, 47, 39, 31, 23, 15, 7};
-
-uint64_t permutation_i(uint64_t input_block)
-{
 
     uint64_t permutation_result = 0;
     for (int i = 0; i < 64; i++)
@@ -213,7 +215,11 @@ uint64_t permutation_i(uint64_t input_block)
     return permutation_result;
 }
 
-static const uint8_t IP_INV_TABLE[64] = {
+
+
+uint64_t permutation_i_inv(uint64_t input_block)
+{
+    static const uint8_t IP_INV_TABLE[64] = {
     40, 8, 48, 16, 56, 24, 64, 32,
     39, 7, 47, 15, 55, 23, 63, 31,
     38, 6, 46, 14, 54, 22, 62, 30,
@@ -222,9 +228,6 @@ static const uint8_t IP_INV_TABLE[64] = {
     35, 3, 43, 11, 51, 19, 59, 27,
     34, 2, 42, 10, 50, 18, 58, 26,
     33, 1, 41, 9, 49, 17, 57, 25};
-
-uint64_t permutation_i_inv(uint64_t input_block)
-{
 
     uint64_t permutation_result = 0;
     for (int i = 0; i < 64; i++)
@@ -246,7 +249,11 @@ uint32_t feistel_round(uint32_t right, uint64_t round_key)
     return permuted;
 }
 
-static const uint8_t PC1_TABLE[56] = {
+
+
+uint64_t permutation_pc1(uint64_t input)
+{
+    static const uint8_t PC1_TABLE[56] = {
     57, 49, 41, 33, 25, 17, 9,
     1, 58, 50, 42, 34, 26, 18,
     10, 2, 59, 51, 43, 35, 27,
@@ -255,10 +262,6 @@ static const uint8_t PC1_TABLE[56] = {
     7, 62, 54, 46, 38, 30, 22,
     14, 6, 61, 53, 45, 37, 29,
     21, 13, 5, 28, 20, 12, 4};
-
-uint64_t permutation_pc1(uint64_t input)
-{
-
     uint64_t permutation_result = 0;
     for (int i = 0; i < 56; i++)
     {
@@ -404,23 +407,22 @@ void precompute()
     }
 }
 
-uint64_t plaintext_buff[BUFFER_SIZE];
-uint64_t ciphertext_buff[BUFFER_SIZE];
-uint32_t ciphertext_count = 0;
-
 int main(int argc, char **argv)
 {
+    precompute();
 
     char mode = argv[1][0];
     const char *keyFile = argv[2];
     const char *inputFile = argv[3];
     const char *outputFile = argv[4];
 
-    precompute();
-
     FILE *fkey = fopen(keyFile, "rb");
     FILE *fin = fopen(inputFile, "rb");
     FILE *fout = fopen(outputFile, "wb");
+
+    uint64_t ciphertext_buff[BUFFER_SIZE];
+    uint64_t plaintext_buff[BUFFER_SIZE];
+    uint32_t ciphertext_count = 0;
 
     /* char *buffer = malloc(BUFFER_SIZE*8);
     setvbuf(fin, buffer, _IOFBF, BUFFER_SIZE*8); */
